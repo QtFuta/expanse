@@ -328,7 +328,7 @@ server.listen(Number.parseInt(process.env.PORT), "0.0.0.0", () => {
 
 process.on("beforeExit", async (exit_code) => {
 	try {
-		await sql.pool.end();
+		await sql.close_db_connection();
 	} catch (err) {
 		console.error(err);
 	}

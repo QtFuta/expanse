@@ -1,4 +1,7 @@
 import node_pg from "pg";
+import child_process from "child_process";
+
+const utils = await import(`${backend}/model/utils.mjs`);
 
 const pool = new node_pg.Pool({ // https://node-postgres.com/api/pool
 	connectionString: process.env.PSQL_CONNECTION || `postgresql://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@db:5432/${process.env.POSTGRES_DB}`,
@@ -629,8 +632,42 @@ async function delete_imported_fns(fns) {
 	});
 }
 
+async function close_db_connection() {
+	return pool.end();
+}
+
+function dump_db(path) {
+	const filename = utils.epoch_to_formatted_datetime(utils.now_epoch()).replaceAll(":", "꞉").split(" ").join("_");
+
+	/* Remove trailing slash */
+	path = path.replace(/\/$/, '');
+	
+	const spawn = child_process.spawn("pg_dump", [
+		"-O", "-d", sql.pool.options.connectionString, "-f", `${path}/${filename}.sql`
+	]);
+
+	spawn.stderr.on("data", (data) => {
+		const stderr = data.toString();
+		console.error(stderr);
+	});
+
+	spawn.stdout.on("data", (data) => {
+		const stdout = data.toString();
+		(stdout != "\n" ? console.log(stdout) : null);
+	});
+
+	spawn.on("exit", (exit_code) => {
+		if (exit_code == 0) {
+			console.log(`backed up db to file (${filename}.sql)`);
+
+			delete_oldest_if_reached_limit(5, `${path}/`, "db backup").catch((err) => console.error(err));
+		} else {
+			console.error(`db backup process exited with code ${exit_code}`);
+		}
+	});
+}
+
 export {
-	pool,
 	init_db,
 	save_user,
 	update_user,
@@ -645,5 +682,7 @@ export {
 	delete_item_from_expanse_acc,
 	parse_import,
 	get_fns_to_import,
-	delete_imported_fns
+	delete_imported_fns,
+	close_db_connection,
+	dump_db
 };

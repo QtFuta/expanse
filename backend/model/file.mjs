@@ -1,11 +1,9 @@
 const backend = '..';
 
 const sql = await import(`${backend}/model/sql.mjs`);
-const utils = await import(`${backend}/model/utils.mjs`);
 
 import * as xlsx from "xlsx";
 import filesystem from "fs";
-import child_process from "child_process";
 
 async function init() {
 	for (const dir of [`${backend}/logs/`, `${backend}/tempfiles/`, `${backend}/backups/`]) {
@@ -120,31 +118,7 @@ async function delete_oldest_if_reached_limit(limit, dir, what) {
 }
 
 function backup_db() {
-	const filename = utils.epoch_to_formatted_datetime(utils.now_epoch()).replaceAll(":", "꞉").split(" ").join("_");
-
-	const spawn = child_process.spawn("pg_dump", [
-		"-O", "-d", sql.pool.options.connectionString, "-f", `${backend}/backups/${filename}.sql`
-	]);
-
-	spawn.stderr.on("data", (data) => {
-		const stderr = data.toString();
-		console.error(stderr);
-	});
-
-	spawn.stdout.on("data", (data) => {
-		const stdout = data.toString();
-		(stdout != "\n" ? console.log(stdout) : null);
-	});
-
-	spawn.on("exit", (exit_code) => {
-		if (exit_code == 0) {
-			console.log(`backed up db to file (${filename}.sql)`);
-
-			delete_oldest_if_reached_limit(5, `${backend}/backups/`, "db backup").catch((err) => console.error(err));
-		} else {
-			console.error(`db backup process exited with code ${exit_code}`);
-		}
-	});
+	sql.dump_db(`${backend}/backups`);
 }
 function cycle_backup_db() {
 	(process.env.RUN == "dev" ? backup_db() : null);
