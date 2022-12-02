@@ -1,9 +1,6 @@
-import child_process from "child_process";
 import Database from 'better-sqlite3';
+import * as utils from '#models/utils.mjs';
 
-const backend = '..';
-
-const utils = await import(`${backend}/model/utils.mjs`);
 const client = new Database(process.env.SQLITE_DB_PATH);
 
 async function init_db() {
@@ -103,9 +100,9 @@ async function transaction(queries) {
 	const client = await pool.connect();
 	try {
 		await client.query("begin;");
-		for (const query of queries) {
+			for (const query of queries) {
 			await client.query(query);
-		}
+			}
 		await client.query("commit;");
 	} catch (err) {
 		console.error(err);

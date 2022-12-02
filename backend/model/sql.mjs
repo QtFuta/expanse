@@ -1,9 +1,6 @@
 import node_pg from "pg";
 import child_process from "child_process";
-
-const backend = '..';
-
-const utils = await import(`${backend}/model/utils.mjs`);
+import * as utils from '#models/utils.mjs';
 
 const pool = new node_pg.Pool({ // https://node-postgres.com/api/pool
 	connectionString: process.env.PSQL_CONNECTION || `postgresql://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@db:5432/${process.env.POSTGRES_DB}`,

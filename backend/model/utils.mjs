@@ -1,3 +1,6 @@
+
+/* This file needs to be statically imported, can't get used with await import() since it uses getImportPath() in this file */
+
 function now_epoch() {
 	const now_epoch = Math.floor(Date.now() / 1000);
 	return now_epoch;
@@ -16,8 +19,23 @@ function strip_trailing_slash(string) {
 	return stripped_string;
 }
 
+/* Probably needs better naming */
+function getBackendPath() {
+	return process.cwd().replace('C:\\', 'file://');
+}
+
+function isWindows() {
+	return process.platform === "win32";
+}
+
+function getImportPath() {
+	return isWindows() ? '..' : getBackendPath();
+}
+
 export {
 	now_epoch,
 	epoch_to_formatted_datetime,
-	strip_trailing_slash
+	strip_trailing_slash,
+	getBackendPath,
+	getImportPath
 };

@@ -1,10 +1,11 @@
-const backend = '..';
+import * as utils from '#models/utils.mjs';
+
+const backend = utils.getImportPath();
 
 const sql = await import(`${backend}/model/sqlite.mjs`);
 const reddit = await import(`${backend}/model/reddit.mjs`);
 const cryptr = await import(`${backend}/model/cryptr.mjs`);
 const logger = await import(`${backend}/model/logger.mjs`);
-const utils = await import(`${backend}/model/utils.mjs`);
 
 let update_all_completed = null;
 

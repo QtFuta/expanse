@@ -1,4 +1,6 @@
-const backend = '..';
+import * as utils from '#models/utils.mjs';
+
+const backend = utils.getImportPath();
 
 import winston from "winston";
 

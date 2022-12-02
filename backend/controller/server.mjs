@@ -8,17 +8,19 @@ import crypto from "crypto";
 import filesystem from "fs";
 import fileupload from "express-fileupload";
 import * as dotenv from 'dotenv';
+import * as utils from '#models/utils.mjs';
 
-dotenv.config({ path: process.cwd() + `/.env` });
+const backend = utils.getBackendPath();
+const import_path = utils.getImportPath();
 
-const backend = '..';
-const frontend = '../../frontend';
+/* Can't use backend path since it uses file:// protocol in windows */
+dotenv.config({ path: `${process.cwd()}/.env` });
 
-const file = await import(`${backend}/model/file.mjs`);
-const sql = await import(`${backend}/model/sqlite.mjs`);
-const user = await import(`${backend}/model/user.mjs`);
-const utils = await import(`${backend}/model/utils.mjs`);
+const file = await import(`${import_path}/model/file.mjs`);
+const sql = await import(`${import_path}/model/sqlite.mjs`);
+const user = await import(`${import_path}/model/user.mjs`);
 
+const sendfile_options = { root : process.env.FRONTEND_PATH };
 const app = express();
 const server = http.createServer(app);
 const io = new socket_io_server.Server(server, {
@@ -41,7 +43,7 @@ app.use(fileupload({
 	}
 }));
 
-app.use("/", express.static(`${frontend}/build/`));
+app.use("/", express.static(`${process.env.FRONTEND_PATH}/build/`));
 
 passport.use(new passport_reddit.Strategy({
 	clientID: process.env.REDDIT_APP_ID,
@@ -82,7 +84,7 @@ process.nextTick(() => { // handle any deserializeUser errors here
 			console.log(`destroyed session (${username})`);
 			req.logout();
 
-			res.status(401).sendFile(`${frontend}/build/index.html`);
+			res.status(401).sendFile(`build/index.html`, sendfile_options);
 		} else {
 			next();
 		}
@@ -167,7 +169,7 @@ app.post("/upload", (req, res) => {
 		file.parse_import(req.user.username, files).catch((err) => console.error(err));
 		res.end();
 	} else {
-		res.status(401).sendFile(`${frontend}/build/index.html`);
+		res.status(401).sendFile(`build/index.html`, sendfile_options);
 	}
 });
 
@@ -177,7 +179,7 @@ app.get("/download", (req, res) => {
 			filesystem.promises.unlink(`${backend}/tempfiles/${req.query.filename}.json`).catch((err) => console.error(err));
 		});
 	} else {
-		res.status(401).sendFile(`${frontend}/build/index.html`);
+		res.status(401).sendFile(`build/index.html`, sendfile_options);
 	}
 });
 
@@ -186,7 +188,7 @@ app.get("/logout", (req, res) => {
 		req.logout();
 		res.redirect(302, "/");
 	} else {
-		res.status(401).sendFile(`${frontend}/build/index.html`);
+		res.status(401).sendFile(`build/index.html`, sendfile_options);
 	}
 });
 
@@ -201,12 +203,12 @@ app.get("/purge", async (req, res) => {
 			res.send("error");
 		}
 	} else {
-		res.status(401).sendFile(`${frontend}/build/index.html`);
+		res.status(401).sendFile(`build/index.html`, sendfile_options);
 	}
 });
 
 app.all("*", (req, res) => {
-	res.status(404).sendFile(`${frontend}/build/index.html`);
+	res.status(404).sendFile(`build/index.html`, sendfile_options);
 });
 
 io.on("connect", (socket) => {
