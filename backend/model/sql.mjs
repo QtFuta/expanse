@@ -1,6 +1,8 @@
 import node_pg from "pg";
 import child_process from "child_process";
 
+const backend = '..';
+
 const utils = await import(`${backend}/model/utils.mjs`);
 
 const pool = new node_pg.Pool({ // https://node-postgres.com/api/pool
@@ -636,14 +638,14 @@ async function close_db_connection() {
 	return pool.end();
 }
 
-function dump_db(path) {
+function dump_db(path, cb) {
 	const filename = utils.epoch_to_formatted_datetime(utils.now_epoch()).replaceAll(":", "꞉").split(" ").join("_");
 
 	/* Remove trailing slash */
 	path = path.replace(/\/$/, '');
 	
 	const spawn = child_process.spawn("pg_dump", [
-		"-O", "-d", sql.pool.options.connectionString, "-f", `${path}/${filename}.sql`
+		"-O", "-d", pool.options.connectionString, "-f", `${path}/${filename}.sql`
 	]);
 
 	spawn.stderr.on("data", (data) => {
@@ -660,7 +662,7 @@ function dump_db(path) {
 		if (exit_code == 0) {
 			console.log(`backed up db to file (${filename}.sql)`);
 
-			delete_oldest_if_reached_limit(5, `${path}/`, "db backup").catch((err) => console.error(err));
+			cb();
 		} else {
 			console.error(`db backup process exited with code ${exit_code}`);
 		}

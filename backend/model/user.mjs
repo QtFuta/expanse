@@ -1,6 +1,6 @@
 const backend = '..';
 
-const sql = await import(`${backend}/model/sql.mjs`);
+const sql = await import(`${backend}/model/sqlite.mjs`);
 const reddit = await import(`${backend}/model/reddit.mjs`);
 const cryptr = await import(`${backend}/model/cryptr.mjs`);
 const logger = await import(`${backend}/model/logger.mjs`);

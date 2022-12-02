@@ -1,7 +1,7 @@
 {
 	"type": "module",
 	"scripts": {
-		"dev": "RUN=dev PORT=1301 nodemon ./controller/server.mjs",
+		"dev": "set RUN=dev&& set PORT=1301&& node ./controller/server.mjs",
 		"prod": "set RUN=prod&& set PORT=1301&& node ./controller/server.mjs"
 	},
 	"devDependencies": {

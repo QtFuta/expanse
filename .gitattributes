@@ -3,5 +3,8 @@
 sql.mjs linguist-detectable=true
 sql.mjs linguist-language=SQL
 
+sqlite.mjs linguist-detectable=true
+sqlite.mjs linguist-language=SQL
+
 dockerfile linguist-detectable=true
 dockerfile linguist-language=Dockerfile

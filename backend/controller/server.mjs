@@ -15,7 +15,7 @@ const backend = '..';
 const frontend = '../../frontend';
 
 const file = await import(`${backend}/model/file.mjs`);
-const sql = await import(`${backend}/model/sql.mjs`);
+const sql = await import(`${backend}/model/sqlite.mjs`);
 const user = await import(`${backend}/model/user.mjs`);
 const utils = await import(`${backend}/model/utils.mjs`);
 

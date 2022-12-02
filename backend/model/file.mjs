@@ -1,6 +1,6 @@
 const backend = '..';
 
-const sql = await import(`${backend}/model/sql.mjs`);
+const sql = await import(`${backend}/model/sqlite.mjs`);
 
 import * as xlsx from "xlsx";
 import filesystem from "fs";
@@ -118,7 +118,10 @@ async function delete_oldest_if_reached_limit(limit, dir, what) {
 }
 
 function backup_db() {
-	sql.dump_db(`${backend}/backups`);
+	// TODO: change this into promise
+	sql.dump_db(`${backend}/backups`, () => {
+		delete_oldest_if_reached_limit(5, `${backend}/backups`, "db backup").catch((err) => console.error(err));
+	});
 }
 function cycle_backup_db() {
 	(process.env.RUN == "dev" ? backup_db() : null);
