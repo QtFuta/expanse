@@ -1,4 +1,4 @@
-const backend = process.cwd();
+const backend = '..';
 
 const sql = await import(`${backend}/model/sql.mjs`);
 const utils = await import(`${backend}/model/utils.mjs`);

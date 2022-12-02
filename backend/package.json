@@ -2,15 +2,17 @@
 	"type": "module",
 	"scripts": {
 		"dev": "RUN=dev PORT=1301 nodemon ./controller/server.mjs",
-		"prod": "RUN=prod PORT=1301 node ./controller/server.mjs"
+		"prod": "set RUN=prod&& set PORT=1301&& node ./controller/server.mjs"
 	},
 	"devDependencies": {
 		"@types/node": "18.11.9",
 		"nodemon": "2.0.20"
 	},
 	"dependencies": {
+		"better-sqlite3": "8.0.1",
 		"cookie-session": "1.4.0",
 		"cryptr": "6.0.3",
+		"dotenv": "16.0.3",
 		"express": "4.18.2",
 		"express-fileupload": "1.4.0",
 		"passport": "0.5.3",
@@ -20,5 +22,8 @@
 		"socket.io": "4.5.3",
 		"winston": "3.8.2",
 		"xlsx": "0.18.5"
+	},
+	"imports": {
+		"#models/*": "./model/*"
 	}
 }

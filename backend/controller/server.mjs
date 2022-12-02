@@ -1,10 +1,3 @@
-const backend = process.cwd();
-
-const file = await import(`${backend}/model/file.mjs`);
-const sql = await import(`${backend}/model/sql.mjs`);
-const user = await import(`${backend}/model/user.mjs`);
-const utils = await import(`${backend}/model/utils.mjs`);
-
 import * as socket_io_server from "socket.io";
 import express from "express";
 import http from "http";
@@ -14,6 +7,17 @@ import passport_reddit from "passport-reddit";
 import crypto from "crypto";
 import filesystem from "fs";
 import fileupload from "express-fileupload";
+import * as dotenv from 'dotenv';
+
+dotenv.config({ path: process.cwd() + `/.env` });
+
+const backend = '..';
+const frontend = '../../frontend';
+
+const file = await import(`${backend}/model/file.mjs`);
+const sql = await import(`${backend}/model/sql.mjs`);
+const user = await import(`${backend}/model/user.mjs`);
+const utils = await import(`${backend}/model/utils.mjs`);
 
 const app = express();
 const server = http.createServer(app);
@@ -21,8 +25,6 @@ const io = new socket_io_server.Server(server, {
 	cors: (process.env.RUN == "dev" ? {origin: "*"} : null),
 	maxHttpBufferSize: 1000000 // 1mb in bytes
 });
-
-const frontend = backend.replace("backend", "frontend");
 
 const allowed_users = new Set(process.env.ALLOWED_USERS.split(", "));
 const denied_users = new Set(process.env.DENIED_USERS.split(", "));

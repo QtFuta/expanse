@@ -1,4 +1,4 @@
-const backend = process.cwd();
+const backend = '..';
 
 import winston from "winston";
 
