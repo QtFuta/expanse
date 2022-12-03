@@ -18,7 +18,7 @@ async function init_db() {
 					name NOT LIKE 'item_search_%' -- SQLite tables for item_search virtual table
 				;
 			`).all();
-			/* Chaning foreign_keys doesn't work when in a transaction */
+			/* Changing foreign_keys doesn't work when in a transaction */
 			client.pragma('foreign_keys = OFF');
 			all_tables.map((table, idx, arr) => {
 				client.exec(`drop table ${table.name};`);
@@ -383,7 +383,7 @@ async function get_data(username, filter, item_count, offset) {
 	const prepared_statement = {
 		text: [`
 			select 
-				id, 
+				item.id, 
 				type, 
 				content, 
 				author, 
@@ -391,7 +391,8 @@ async function get_data(username, filter, item_count, offset) {
 				url, 
 				created_epoch 
 			from 
-				item inner join user_item on id = item_id 
+				item inner join user_item on (item.id = item_id) 
+					inner join item_search on (item.id = item_search.id)
 			where 
 				username = '${username}' 
 				and category = ?`,
@@ -422,7 +423,7 @@ async function get_data(username, filter, item_count, offset) {
 	}
 
 	if (filter.search_str != "") {
-		prepared_statement.text[1].push(`and search_vector @@ to_tsquery(?)`);
+		prepared_statement.text[1].push(`and search_vector MATCH ?`);
 
 		const psql_fts_search_str = filter.search_str.replaceAll(" ", " AND ");
 		prepared_statement.values.push(psql_fts_search_str);
@@ -430,7 +431,7 @@ async function get_data(username, filter, item_count, offset) {
 
 	prepared_statement.text[1] = prepared_statement.text[1].join(" ");
 	prepared_statement.text = prepared_statement.text.join(" ");
-	let rows = client.prepare(prepared_statement).all();
+	let rows = client.prepare(prepared_statement.text).all(prepared_statement.values);
 	
 	const subs = new Set();
 	for (const obj of rows) {
@@ -465,7 +466,7 @@ async function get_placeholder(username, filter) {
 				item inner join user_item on id = item_id 
 			where 
 				username = '${username}' 
-				and category = $1`,
+				and category = ?`,
 				"",
 			`;
 		`],
@@ -475,12 +476,12 @@ async function get_placeholder(username, filter) {
 	};
 
 	if (filter.type != "all") {
-		prepared_statement.text[1] = "and type = $2";
+		prepared_statement.text[1] = "and type = ?";
 		prepared_statement.values.push(filter.type);
 	}
 
 	prepared_statement.text = prepared_statement.text.join(" ");
-	const count = client.prepare(prepared_statement).get().count;
+	const count = client.prepare(prepared_statement.text).get(prepared_statement.values).count;
 
 	const placeholder = Number.parseInt(count);
 	return placeholder;
@@ -495,7 +496,7 @@ async function get_subs(username, filter) {
 				item inner join user_item on id = item_id 
 			where 
 				username = '${username}' 
-				and category = $1`,
+				and category = ?`,
 				"",
 			`order by
 				sub asc
@@ -507,12 +508,12 @@ async function get_subs(username, filter) {
 	};
 
 	if (filter.type != "all") {
-		prepared_statement.text[1] = "and type = $2";
+		prepared_statement.text[1] = "and type = ?";
 		prepared_statement.values.push(filter.type);
 	}
 
 	prepared_statement.text = prepared_statement.text.join(" ");
-	const rows = client.prepare(prepared_statement).all();
+	const rows = client.prepare(prepared_statement.text).all(prepared_statement.values);
 
 	const subs = rows.map((obj, idx, arr) => obj.sub);
 	return subs;
@@ -544,8 +545,8 @@ async function delete_item_from_expanse_acc(username, item_id, item_category) {
 				user_item 
 			where 
 				username = '${username}' 
-				and category = $1 
-				and item_id = $2
+				and category = ? 
+				and item_id = ?
 			;
 		`,
 		values: [
@@ -558,14 +559,14 @@ async function delete_item_from_expanse_acc(username, item_id, item_category) {
 			from 
 				item 
 			where 
-				id = $1 
+				id = ? 
 				and not exists (
 					select 
 						1 
 					from 
 						user_item 
 					where 
-						item_id = $2
+						item_id = ?
 				)
 			;
 		`,
