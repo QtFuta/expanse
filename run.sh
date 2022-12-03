@@ -44,6 +44,7 @@ elif [ "$1" = "prod" ]; then
 		sh ./run.sh prod down
 		git pull
 		sudo PWD=${PWD} docker compose -f $COMPOSER_FILE pull
+		sudo PWD=${PWD} docker compose -f $COMPOSER_FILE build
 		sh ./run.sh prod up
 		return
 	fi
