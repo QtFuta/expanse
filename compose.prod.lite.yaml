@@ -16,7 +16,7 @@ networks:
 services:
     app:
         container_name: expanse_app
-        image: ghcr.io/jc9108/expanse:latest
+        build: ./
         working_dir: /app/
         volumes:
             - db:/app/backend/sqlite
