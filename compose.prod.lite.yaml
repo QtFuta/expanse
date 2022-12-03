@@ -29,6 +29,10 @@ services:
             - VERSION=1.2.8
         env_file:
             - ./backend/.env_prod
+        logging:
+            options:
+                max-size: 50m
+                max-file: 2
         entrypoint: []
         command: sh -c "cd ./backend/ && npm run prod"
         restart: on-failure
