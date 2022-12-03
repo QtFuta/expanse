@@ -1,7 +1,15 @@
 version: "3.8"
 volumes:
     db:
+        driver_opts:
+            o: bind
+            type: none
+            device: ${PWD}/backend/sqlite
     backups:
+        driver_opts:
+            o: bind
+            type: none
+            device: ${PWD}/backend/backups
 networks:
     net:
         attachable: false
