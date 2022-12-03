@@ -1,0 +1,26 @@
+version: "3.8"
+networks:
+    net:
+        attachable: false
+services:
+    app:
+        container_name: expanse_app
+        build: ./
+        working_dir: /app/
+        volumes:
+            - ./backend/:/app/backend/
+            - ./frontend/:/app/frontend/
+        networks:
+            - net
+        extra_hosts:
+            - "host.docker.internal:host-gateway"
+        ports:
+            - "1301:1301"
+            - "1300:1300"
+        environment:
+            - VERSION=0.0.0
+        env_file:
+            - ./backend/.env_dev
+        entrypoint: []
+        command: sh -c "concurrently --names \"backend,frontend\" --prefix \"{name}:\" --prefix-colors \"#f2caff,#61f2f2\" \"cd ./backend/ && npm run dev\" \"wait-for-it app:1301 -t 0 && cd ./frontend/ && npm run dev\""
+        restart: "no"

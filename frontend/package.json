@@ -1,13 +1,14 @@
 {
 	"type": "module",
 	"scripts": {
-		"dev": "RUN=dev PORT=1300 vite dev",
+		"dev": "cross-env RUN=dev PORT=1300 vite dev",
 		"build": "vite build",
 		"preview": "vite preview"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-static": "1.0.0-next.39",
 		"@sveltejs/kit": "1.0.0-next.405",
+		"cross-env": "7.0.3",
 		"svelte": "3.49.0",
 		"vite": "3.0.7"
 	},

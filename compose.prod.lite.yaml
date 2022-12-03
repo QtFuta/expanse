@@ -1,0 +1,24 @@
+version: "3.8"
+volumes:
+    db:
+    backups:
+networks:
+    net:
+        attachable: false
+services:
+    app:
+        image: ghcr.io/jc9108/expanse:latest
+        working_dir: /app/
+        volumes:
+            - backups:/app/backend/backups/
+        networks:
+            - net
+        ports:
+            - "1301:1301"
+        environment:
+            - VERSION=1.2.8
+        env_file:
+            - ./backend/.env_prod
+        entrypoint: []
+        command: sh -c "wait-for-it db:5432 -t 0 && cd ./backend/ && npm run prod"
+        restart: on-failure

@@ -14,7 +14,7 @@ const backend = utils.getBackendPath();
 const import_path = utils.getImportPath();
 
 /* Can't use backend path since it uses file:// protocol in windows */
-dotenv.config({ path: `${process.cwd()}/.env` });
+dotenv.config({ path: `${process.cwd()}/.env_${process.env.RUN}` });
 
 const file = await import(`${import_path}/model/file.mjs`);
 const sql = await import(`${import_path}/model/sqlite.mjs`);
@@ -28,8 +28,8 @@ const io = new socket_io_server.Server(server, {
 	maxHttpBufferSize: 1000000 // 1mb in bytes
 });
 
-const allowed_users = new Set(process.env.ALLOWED_USERS.split(", "));
-const denied_users = new Set(process.env.DENIED_USERS.split(", "));
+const allowed_users = new Set(process.env.ALLOWED_USERS.split(","));
+const denied_users = new Set(process.env.DENIED_USERS.split(","));
 
 await file.init();
 await sql.init_db();

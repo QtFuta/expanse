@@ -1,5 +1,16 @@
 #!/bin/sh
 
+if [ "$1" != "dev" ] && [ "$1" != "prod" ]; then
+	echo "Invalid environment. Valid options: 'dev' and 'prod'"
+	return
+fi
+
+export $(cat backend/.env_$1 | sed -E -e 's/#.*//' -e 's/="/=/' -e 's/(" *$|" *#)//' -e '/^$/d' | xargs -d '\n')
+COMPOSER_FILE=./compose.%env%%db_type%.yaml
+COMPOSER_FILE=$(echo $COMPOSER_FILE | sed "s/%env%/$1/")
+[ $DB_DRIVER = 'sqlite' ] && DB_TYPE=".lite" || DB_TYPE=""
+COMPOSER_FILE=$(echo $COMPOSER_FILE | sed "s/%db_type%/$DB_TYPE/")
+
 if [ "$1" = "dev" ]; then
 	if [ "$2" = "audit" ]; then
 		(cd ./backend/ && npm audit)
@@ -12,27 +23,27 @@ if [ "$1" = "dev" ]; then
 	elif [ "$2" = "build" ]; then
 		(cd ./backend/ && npm install)
 		(cd ./frontend/ && npm install && npm run build)
-		sudo docker compose -f ./compose.dev.yaml build
+		sudo docker compose -f $COMPOSER_FILE build
 		return
 	elif [ "$2" = "up" ]; then
-		sudo docker compose -f ./compose.dev.yaml up --no-build
+		sudo docker compose -f $COMPOSER_FILE up --no-build
 		return
 	fi
 elif [ "$1" = "prod" ]; then
 	if [ "$2" = "up" ]; then
 		if [ "$3" = "--no-d" ]; then
-			sudo docker compose -f ./compose.prod.yaml up
+			sudo docker compose -f $COMPOSER_FILE up
 			return
 		fi
-		sudo docker compose -f ./compose.prod.yaml up -d
+		sudo docker compose -f $COMPOSER_FILE up -d
 		return
 	elif [ "$2" = "down" ]; then
-		sudo docker compose -f ./compose.prod.yaml down
+		sudo docker compose -f $COMPOSER_FILE down
 		return
 	elif [ "$2" = "update" ]; then
 		sh ./run.sh prod down
 		git pull
-		sudo docker compose -f ./compose.prod.yaml pull
+		sudo docker compose -f $COMPOSER_FILE pull
 		sh ./run.sh prod up
 		return
 	fi

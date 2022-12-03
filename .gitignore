@@ -6,6 +6,7 @@ backups/
 logs/
 tempfiles/
 build/
+*.db
 
 # keep
 !.git*
