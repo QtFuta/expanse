@@ -14,7 +14,8 @@ async function init_db() {
 					sqlite_schema 
 				where 
 					type ='table' AND 
-					name NOT LIKE 'sqlite_%'
+					name NOT LIKE 'sqlite_%' AND
+					name NOT LIKE 'item_search_%' -- SQLite tables for item_search virtual table
 				;
 			`).all();
 			/* Chaning foreign_keys doesn't work when in a transaction */
@@ -49,8 +50,22 @@ async function init_db() {
 						author TEXT not null, 
 						sub TEXT not null, 
 						url TEXT not null, 
-						created_epoch INTEGER not null, 
-						search_vector TEXT not null
+						created_epoch INTEGER not null
+					)
+				;
+			`);
+
+			/** 
+			 * SQLite alternative to tsvector
+			 * It doesn't have option for types or custom primary key
+			 * We need to use the rowid default column that all tables have
+			 * https://www.sqlite.org/fts5.html
+			 */
+			client.exec(`
+				create virtual table if not exists 
+					item_search using fts5(
+						id,
+						search_vector
 					)
 				;
 			`);
@@ -90,29 +105,22 @@ async function init_db() {
 	}
 }
 
-async function query(query) {
-	const result = await client.prepare(query);
-	const rows = (result ? result.all() : null);
-	return rows;
-}
-
 async function transaction(queries) {
-	const client = await pool.connect();
 	try {
-		await client.query("begin;");
+		client.transaction(() => {
 			for (const query of queries) {
-			await client.query(query);
+				console.log(query.text);
+				console.log(query.values);
+				client.prepare(query.text).run(query.values);
 			}
-		await client.query("commit;");
+		})();
 	} catch (err) {
 		console.error(err);
-		await client.query("rollback;");
 	}
-	client.release();
 }
 
 async function save_user(username, reddit_api_refresh_token_encrypted, category_sync_info, last_active_epoch) {
-	await query(`
+	client.prepare(`
 		insert into 
 			user_ 
 		values (
@@ -130,11 +138,11 @@ async function save_user(username, reddit_api_refresh_token_encrypted, category_
 					last_updated_epoch = excluded.last_updated_epoch, 
 					last_active_epoch = excluded.last_active_epoch
 		;
-	`);
+	`).run();
 }
 
 async function update_user(username, fields) {
-	await query(`
+	client.prepare(`
 		update 
 			user_ 
 		set 
@@ -142,11 +150,11 @@ async function update_user(username, fields) {
 		where 
 			username = '${username}'
 		;
-	`);
+	`).run();
 }
 
 async function get_user(username) {
-	const rows = await query(`
+	return client.prepare(`
 		select 
 			* 
 		from 
@@ -154,8 +162,7 @@ async function get_user(username) {
 		where 
 			username = '${username}'
 		;
-	`);
-	return rows[0];
+	`).get();
 }
 
 async function purge_user(username) {
@@ -217,7 +224,7 @@ async function purge_user(username) {
 }
 
 async function get_all_non_purged_users() {
-	const rows = await query(`
+	const rows = client.prepare(`
 		select 
 			username 
 		from 
@@ -225,8 +232,56 @@ async function get_all_non_purged_users() {
 		where 
 			reddit_api_refresh_token_encrypted is not null
 		;
-	`);
+	`).all();
 	return rows;
+}
+
+/**
+ * Split big queries due to a limit of parameters in SQLite
+ * 32,766 since SQLite 3.32.0 (in better-sqlite3 since v7.1.0 )
+ * https://www.sqlite.org/limits.html#max_variable_number
+ * 
+ * @param {Array.<{text: Array, values: Array}[]>} statements Well formatted prepared statements array
+ * @param {Number} [duplicate_values=0] How many values should be duplicated for all splits
+ */
+function split_prepared_statements(statements, duplicate_values = 0) {
+	const max_parameters = 32_766;
+	let res = [];
+	for (const statement of statements) {
+		let parameters_per_entry = (statement.text[1][0].match(/\?/g) || []).length;
+		let items_per_chunk = parseInt((max_parameters / parameters_per_entry));
+		let parameters_per_chunk = items_per_chunk * parameters_per_entry;
+		let default_values = statement.values.slice(0, duplicate_values);
+
+		let reducer = (result, value, idx) => {
+			const chunkIdx = Math.floor(idx/items_per_chunk);
+
+			if (!result[chunkIdx]) {
+				result[chunkIdx] = [];
+			}
+
+			result[result.length - 1].push(value);
+
+			return result;
+		};
+		let split = [];
+
+		split.push(statement.text[1].reduce(reducer, []));
+		items_per_chunk = parameters_per_chunk;
+		split.push(statement.values.reduce(reducer, []));
+
+		split[0].forEach((value, idx) => {
+			res.push({
+				text: [
+					statement.text[0],
+					value,
+					statement.text[2]
+				],
+				values: default_values.concat(split[1][idx])
+			})
+		});
+	}
+	return res;
 }
 
 async function insert_data(username, data) {
@@ -244,6 +299,15 @@ async function insert_data(username, data) {
 				nothing
 			;
 		`],
+		values: []
+	}, {
+		text: [`
+			insert or ignore into 
+				item_search (rowid, id, search_vector)
+			values`,
+				[],
+			`` /* Virtual tables don't allow on conflict (UPSERT) */
+		],
 		values: []
 	}, {
 		text: [`
@@ -272,39 +336,42 @@ async function insert_data(username, data) {
 	}];
 
 	let entries = Object.entries(data.items);
+	let items_idx = 0;
+	let items_search_idx = 1;
 	for (const entry of entries) {
-		const value_count = prepared_statements[0].values.length;
-		prepared_statements[0].text[1].push(`($${value_count+1}, $${value_count+2}, $${value_count+3}, $${value_count+4}, $${value_count+5}, $${value_count+6}, $${value_count+7}, to_tsvector($${value_count+8}))`);
-
 		const item_key = entry[0];
 		const item_value = entry[1];
-		prepared_statements[0].values.push(item_key, item_value.type, item_value.content, item_value.author, item_value.sub, item_value.url, item_value.created_epoch, `${item_value.sub} ${item_value.author} ${item_value.content}`);
+
+		prepared_statements[items_idx].text[1].push(`(?, ?, ?, ?, ?, ?, ?)`);
+		prepared_statements[items_search_idx].text[1].push(`((select rowid from item where id='${item_key}'), ?, ?)`);
+
+		prepared_statements[items_idx].values.push(item_key, item_value.type, item_value.content, item_value.author, item_value.sub, item_value.url, item_value.created_epoch);
+		prepared_statements[items_search_idx].values.push(item_key, `${item_value.sub} ${item_value.author} ${item_value.content}`);
 	}
 
 	for (const category in data.category_item_ids) {
 		for (const item_id of data.category_item_ids[category]) {
-			const value_count = prepared_statements[1].values.length;
-			prepared_statements[1].text[1].push(`($${value_count+1}, $${value_count+2}, $${value_count+3})`);
+			prepared_statements[2].text[1].push(`(?, ?, ?)`);
 
-			prepared_statements[1].values.push(username, category, item_id);
+			prepared_statements[2].values.push(username, category, item_id);
 		}
 	}
 
 	entries = Object.entries(data.item_sub_icon_urls);
 	for (const entry of entries) {
-		const value_count = prepared_statements[2].values.length;
-		prepared_statements[2].text[1].push(`($${value_count+1}, $${value_count+2})`);
+		prepared_statements[3].text[1].push(`(?, ?)`);
 
 		const icon_url_key = entry[0];
 		const icon_url_value = entry[1];
-		prepared_statements[2].values.push(icon_url_key, icon_url_value);
+		prepared_statements[3].values.push(icon_url_key, icon_url_value);
 	}
 
-	for (const statement of prepared_statements) {
+	const statements = split_prepared_statements(prepared_statements);
+	for (const statement of statements) {
 		statement.text[1] = statement.text[1].join(", ");
 		statement.text = statement.text.join(" ");
 	}
-	await transaction(prepared_statements);
+	await transaction(statements);
 }
 
 async function get_data(username, filter, item_count, offset) {
@@ -327,7 +394,7 @@ async function get_data(username, filter, item_count, offset) {
 				item inner join user_item on id = item_id 
 			where 
 				username = '${username}' 
-				and category = $1`,
+				and category = ?`,
 				[],
 			`order by 
 				created_epoch desc 
@@ -343,30 +410,27 @@ async function get_data(username, filter, item_count, offset) {
 	};
 
 	if (filter.type != "all") {
-		const value_count = prepared_statement.values.length;
-		prepared_statement.text[1].push(`and type = $${value_count+1}`);
+		prepared_statement.text[1].push(`and type = ?`);
 
 		prepared_statement.values.push(filter.type);
 	}
 
 	if (filter.sub != "all") {
-		const value_count = prepared_statement.values.length;
-		prepared_statement.text[1].push(`and sub = $${value_count+1}`);
+		prepared_statement.text[1].push(`and sub = ?`);
 
 		prepared_statement.values.push(filter.sub);
 	}
 
 	if (filter.search_str != "") {
-		const value_count = prepared_statement.values.length;
-		prepared_statement.text[1].push(`and search_vector @@ to_tsquery($${value_count+1})`);
+		prepared_statement.text[1].push(`and search_vector @@ to_tsquery(?)`);
 
-		const psql_fts_search_str = filter.search_str.replaceAll(" ", " & ");
+		const psql_fts_search_str = filter.search_str.replaceAll(" ", " AND ");
 		prepared_statement.values.push(psql_fts_search_str);
 	}
 
 	prepared_statement.text[1] = prepared_statement.text[1].join(" ");
 	prepared_statement.text = prepared_statement.text.join(" ");
-	let rows = await query(prepared_statement);
+	let rows = client.prepare(prepared_statement).all();
 	
 	const subs = new Set();
 	for (const obj of rows) {
@@ -374,7 +438,7 @@ async function get_data(username, filter, item_count, offset) {
 		subs.add(obj.sub);
 	}
 	if (subs.size > 0) {
-		rows = await query(`
+		rows = client.prepare(`
 			select 
 				* 
 			from 
@@ -382,7 +446,7 @@ async function get_data(username, filter, item_count, offset) {
 			where 
 				${[...subs].map((sub, idx, arr) => `${(idx == 0 ? "" : "or ")}sub = '${sub}'`).join(" ")}
 			;
-		`);
+		`).all();
 
 		for (const obj of rows) {
 			data.item_sub_icon_urls[obj.sub] = obj.url;
@@ -416,9 +480,9 @@ async function get_placeholder(username, filter) {
 	}
 
 	prepared_statement.text = prepared_statement.text.join(" ");
-	const rows = await query(prepared_statement);
+	const count = client.prepare(prepared_statement).get().count;
 
-	const placeholder = Number.parseInt(rows[0].count);
+	const placeholder = Number.parseInt(count);
 	return placeholder;
 }
 
@@ -448,14 +512,14 @@ async function get_subs(username, filter) {
 	}
 
 	prepared_statement.text = prepared_statement.text.join(" ");
-	const rows = await query(prepared_statement);
+	const rows = client.prepare(prepared_statement).all();
 
 	const subs = rows.map((obj, idx, arr) => obj.sub);
 	return subs;
 }
 
 async function update_item(item_id, item_content) {
-	await query({
+	client.prepare({
 		text: `
 			update 
 				item 
@@ -469,7 +533,7 @@ async function update_item(item_id, item_content) {
 			item_content,
 			item_id
 		]
-	});
+	}).run();
 }
 
 async function delete_item_from_expanse_acc(username, item_id, item_category) {
@@ -553,8 +617,7 @@ async function parse_import(username, import_data) {
 			active_ps_idx++;
 		}
 
-		const value_count = prepared_statements[active_ps_idx].values.length;
-		prepared_statements[active_ps_idx].text[1].push(`($${value_count+1}, $${value_count+2})`);
+		prepared_statements[active_ps_idx].text[1].push(`(?, ?)`);
 
 		const fn = import_data.item_fns[i];
 		const item_fn_prefix = fn.split("_")[0];
@@ -569,8 +632,7 @@ async function parse_import(username, import_data) {
 				active_ps_idx++;
 			}
 
-			const value_count = prepared_statements[active_ps_idx].values.length;
-			prepared_statements[active_ps_idx].text[1].push(`($${value_count+1}, $${value_count+2}, $${value_count+3})`);
+			prepared_statements[active_ps_idx].text[1].push(`(?, ?, ?)`);
 
 			const item_id = import_data.category_item_ids[category][i];
 			prepared_statements[active_ps_idx].values.push(username, category, item_id);
@@ -585,7 +647,7 @@ async function parse_import(username, import_data) {
 }
 
 async function get_fns_to_import(username, category) {
-	const rows = await query(`
+	const rows = client.prepare(`
 		select 
 			id, 
 			fn_prefix 
@@ -597,7 +659,7 @@ async function get_fns_to_import(username, category) {
 		limit 
 			500
 		;
-	`);
+	`).all();
 	return rows;
 }
 
@@ -606,7 +668,7 @@ async function delete_imported_fns(fns) {
 		return;
 	}
 	
-	await query({
+	client.prepare({
 		text: `
 			delete 
 			from 
@@ -616,7 +678,7 @@ async function delete_imported_fns(fns) {
 			;
 		`,
 		values: fns.map((fn, idx, arr) => fn.split("_")[1])
-	});
+	}).run();
 }
 
 async function close_db_connection() {

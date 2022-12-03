@@ -525,6 +525,8 @@ async function get(username, existence_check=false) {
 		const plain_object = result;
 		(plain_object.last_updated_epoch ? plain_object.last_updated_epoch = Number.parseInt(plain_object.last_updated_epoch) : null);
 		plain_object.last_active_epoch = Number.parseInt(plain_object.last_active_epoch);
+		/* SQLite stores JSON as strings */
+		typeof plain_object.category_sync_info === 'string' ? plain_object.category_sync_info = JSON.parse(plain_object.category_sync_info) : null;
 	
 		const user = Object.assign(new User(null, null, true), plain_object);
 		return user;
