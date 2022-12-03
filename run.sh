@@ -23,27 +23,27 @@ if [ "$1" = "dev" ]; then
 	elif [ "$2" = "build" ]; then
 		(cd ./backend/ && npm install)
 		(cd ./frontend/ && npm install && npm run build)
-		sudo docker compose -f $COMPOSER_FILE build
+		sudo PWD=${PWD} docker compose -f $COMPOSER_FILE build
 		return
 	elif [ "$2" = "up" ]; then
-		sudo docker compose -f $COMPOSER_FILE up --no-build
+		sudo PWD=${PWD} docker compose -f $COMPOSER_FILE up --no-build
 		return
 	fi
 elif [ "$1" = "prod" ]; then
 	if [ "$2" = "up" ]; then
 		if [ "$3" = "--no-d" ]; then
-			sudo docker compose -f $COMPOSER_FILE up
+			sudo PWD=${PWD} docker compose -f $COMPOSER_FILE up
 			return
 		fi
-		sudo docker compose -f $COMPOSER_FILE up -d
+		sudo PWD=${PWD} docker compose -f $COMPOSER_FILE up -d
 		return
 	elif [ "$2" = "down" ]; then
-		sudo docker compose -f $COMPOSER_FILE down
+		sudo PWD=${PWD} docker compose -f $COMPOSER_FILE down
 		return
 	elif [ "$2" = "update" ]; then
 		sh ./run.sh prod down
 		git pull
-		sudo docker compose -f $COMPOSER_FILE pull
+		sudo PWD=${PWD} docker compose -f $COMPOSER_FILE pull
 		sh ./run.sh prod up
 		return
 	fi
