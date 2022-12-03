@@ -109,8 +109,6 @@ async function transaction(queries) {
 	try {
 		client.transaction(() => {
 			for (const query of queries) {
-				console.log(query.text);
-				console.log(query.values);
 				client.prepare(query.text).run(query.values);
 			}
 		})();
