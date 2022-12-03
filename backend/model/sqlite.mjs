@@ -109,7 +109,12 @@ async function transaction(queries) {
 	try {
 		client.transaction(() => {
 			for (const query of queries) {
-				client.prepare(query.text).run(query.values);
+				if (typeof query === 'string') {
+					client.prepare(query).run();
+				}
+				else {
+					client.prepare(query.text).run(query.values);
+				}
 			}
 		})();
 	} catch (err) {
