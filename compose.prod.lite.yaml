@@ -7,9 +7,11 @@ networks:
         attachable: false
 services:
     app:
+        container_name: expanse_app
         image: ghcr.io/jc9108/expanse:latest
         working_dir: /app/
         volumes:
+            - db:/app/backend/sqlite
             - backups:/app/backend/backups/
         networks:
             - net
@@ -20,5 +22,5 @@ services:
         env_file:
             - ./backend/.env_prod
         entrypoint: []
-        command: sh -c "wait-for-it db:5432 -t 0 && cd ./backend/ && npm run prod"
+        command: sh -c "cd ./backend/ && npm run prod"
         restart: on-failure

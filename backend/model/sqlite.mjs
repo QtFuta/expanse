@@ -302,7 +302,7 @@ async function insert_data(username, data) {
 		values: []
 	}, {
 		text: [`
-			insert or ignore into 
+			insert or replace into 
 				item_search (rowid, id, search_vector)
 			values`,
 				[],

@@ -14,7 +14,7 @@ RUN npm run build
 FROM docker.io/ubuntu:latest
 RUN apt update
 RUN apt install -y curl wait-for-it postgresql-client-14
-RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash - && apt install -y nodejs
+RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - && apt install -y nodejs
 RUN npm install -g concurrently
 WORKDIR /app/backend/
 COPY --from=0 /app/backend/ ./
