@@ -6,7 +6,7 @@ const client = new Database(process.env.SQLITE_DB_PATH);
 async function init_db() {
 	try {
 		/* SQLite doesn't have a recovery from dropping talbe. No need to include it in transaction */
-		if (process.env.RUN == "dev") {
+		if (process.env.RUN == "dev" && process.env.DEBUG_CLEAN_DB) {
 			const all_tables = client.prepare(`
 				select 
 					name 

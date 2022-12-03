@@ -2,7 +2,7 @@ import * as utils from '#models/utils.mjs';
 
 const backend = utils.getImportPath();
 
-const sql = await import(`${backend}/model/sqlite.mjs`);
+const sql = await import(process.env.DB_DRIVER === "sqlite" ? `${backend}/model/sqlite.mjs` : `${backend}/model/sql.mjs`);
 const reddit = await import(`${backend}/model/reddit.mjs`);
 const cryptr = await import(`${backend}/model/cryptr.mjs`);
 const logger = await import(`${backend}/model/logger.mjs`);

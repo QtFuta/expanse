@@ -13,7 +13,7 @@ async function init_db() {
 	try {
 		await client.query("begin;");
 
-		if (process.env.RUN == "dev") {
+		if (process.env.RUN == "dev" && process.env.DEBUG_CLEAN_DB) {
 			const result = await client.query(`
 				select 
 					table_name 

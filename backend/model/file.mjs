@@ -2,7 +2,7 @@ import * as utils from '#models/utils.mjs';
 
 const backend = utils.getImportPath();
 
-const sql = await import(`${backend}/model/sqlite.mjs`);
+const sql = await import(process.env.DB_DRIVER === "sqlite" ? `${backend}/model/sqlite.mjs` : `${backend}/model/sql.mjs`);
 
 import * as xlsx from "xlsx";
 import filesystem from "fs";
