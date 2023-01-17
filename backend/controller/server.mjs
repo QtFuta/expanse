@@ -9,6 +9,7 @@ import filesystem from "fs";
 import fileupload from "express-fileupload";
 import * as dotenv from 'dotenv';
 import * as utils from '#models/utils.mjs';
+import * as plugins from '#models/plugins.mjs';
 
 const backend = utils.getBackendPath();
 const import_path = utils.getImportPath();
@@ -19,6 +20,8 @@ dotenv.config({ path: `${process.cwd()}/.env_${process.env.RUN}` });
 const file = await import(`${import_path}/model/file.mjs`);
 const sql = await import(process.env.DB_DRIVER === "sqlite" ? `${import_path}/model/sqlite.mjs` : `${import_path}/model/sql.mjs`);
 const user = await import(`${import_path}/model/user.mjs`);
+
+plugins.validatePlugins();
 
 const sendfile_options = { root : process.env.FRONTEND_PATH };
 const app = express();

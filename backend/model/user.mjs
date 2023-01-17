@@ -1,4 +1,5 @@
 import * as utils from '#models/utils.mjs';
+import * as plugins from '#models/plugins.mjs';
 
 const backend = utils.getImportPath();
 
@@ -11,6 +12,7 @@ let update_all_completed = null;
 
 const usernames_to_socket_ids = {};
 const socket_ids_to_usernames = {};
+const categories = ["saved", "created", "upvoted", "downvoted", "hidden", "awarded"];
 
 class User {
 	constructor(username, refresh_token, dummy=false) {
@@ -151,6 +153,8 @@ class User {
 				};
 
 				this.new_data.category_item_ids[category].add(item.id);
+
+				this.new_data.objects.set(item.id, item);
 
 				this.sub_icon_urls_to_get.add(item.subreddit_name_prefixed);
 			}
@@ -317,18 +321,17 @@ class User {
 		this.me = await this.requester.getMe();
 		
 		this.new_data = {
+			objects: new Map(),
 			items: {},
 			category_item_ids: {},
 			item_sub_icon_urls: {}
 		};
 		this.sub_icon_urls_to_get = new Set();
 		this.imported_fns_to_delete = new Set();
-
-		const categories = ["saved", "created", "upvoted", "downvoted", "hidden", "awarded"];
+		
 		for (const category of categories) {
 			this.new_data.category_item_ids[category] = new Set();
 		}
-		categories.pop();
 
 		const s_promise = new Promise(async (resolve, reject) => {
 			try {
@@ -419,9 +422,12 @@ class User {
 		await Promise.all([s_promise, c_promise, u_promise, d_promise, h_promise, a_promise]);
 		await this.get_new_item_icon_urls();
 
+		let newItems = await this.getNewItems();
+
 		try {
 			await sql.insert_data(this.username, this.new_data);
 			await sql.delete_imported_fns([...(this.imported_fns_to_delete)]);
+			this.callPlugins(newItems);
 			(io ? io.to(socket_id).emit("update progress", ++progress, complete) : null);
 		} catch (err) {
 			console.error(err);
@@ -501,6 +507,37 @@ class User {
 			});
 		}
 	}
+	async getNewItems() {
+		let ids = [];
+		this.new_data.objects.forEach((value) => ids.push(value.id));
+		let dbItems = await sql.get_items(ids);
+
+		let newItems = [];
+		this.new_data.objects.forEach((value) => {
+			if (dbItems.find(item => item.id == value.id) === undefined) newItems.push(value);
+		});
+		return newItems;
+	}
+	async callPlugins(newItems) {
+		for (const plugin of plugins.getPlugins()) {
+			newItems.forEach((post) => {
+				Promise.resolve(
+					plugin.receiveItem(post)
+					).then(() => {}).catch((error) => {
+					console.error(`Plugin "${plugin.getId()}" failed receiving item`, error);
+				});
+			});
+			for (const category of categories) {
+				for (const item of this.new_data.category_item_ids[category]) {
+					Promise.resolve(
+						plugin.receiveUserItem(this.username, category, this.new_data.objects.get(item), {})
+						).then(() => {}).catch((error) => {
+						console.error(`Plugin "${plugin.getId()}" failed receiving user item`, error);
+					});
+				}
+			}
+		}
+	}
 	async purge() {
 		await sql.purge_user(this.username);
 		delete usernames_to_socket_ids[this.username];
@@ -539,69 +576,74 @@ async function update_all(io) {
 
 	const all_usernames = Object.keys(usernames_to_socket_ids);
 	for (const username of all_usernames) {
-		let user = null;
-		try {
-			user = await get(username);
-
-			if (user.last_updated_epoch && utils.now_epoch() - user.last_updated_epoch >= 30) {
-				const pre_update_category_sync_info = JSON.parse(JSON.stringify(user.category_sync_info));
-
-				await user.update();
-				
-				const post_update_category_sync_info = user.category_sync_info;
-				
-				const socket_id = usernames_to_socket_ids[user.username];
-				if (socket_id) {
-					const categories_w_new_data = [];
-					for (const category in user.category_sync_info) {
-						(post_update_category_sync_info[category].latest_new_data_epoch > pre_update_category_sync_info[category].latest_new_data_epoch ? categories_w_new_data.push(category) : null);
-					}
-					(categories_w_new_data.length > 0 ? io.to(socket_id).emit("show refresh alert", categories_w_new_data) : null);
-
-					io.to(socket_id).emit("store last updated epoch", user.last_updated_epoch);
-				}
-			}
-		} catch (err) {
-			if (err != `Error: user (${username}) dne`) {
-				console.error(err);
-				logger.error(`user (${username}) update error (${err})`);
-
-				if (err.statusCode == 403 && err.options.qs.before) {
-					try {
-						switch (err.extras.category) {
-							case "saved":
-							case "awarded":
-								await user.replace_latest_fn(err.extras.category, "mixed");
-								break;
-							case "created":
-								await Promise.all([
-									user.replace_latest_fn(err.extras.category, "posts"),
-									user.replace_latest_fn(err.extras.category, "comments")
-								]);
-								break;
-							case "upvoted":
-							case "downvoted":
-							case "hidden":
-								await user.replace_latest_fn(err.extras.category, "posts");
-								break;
-							default:
-								break;
-						}
-						await sql.update_user(user.username, {
-							category_sync_info: JSON.stringify(user.category_sync_info)
-						});
-					} catch (err) {
-						console.error(err);
-						logger.error(`user (${username}) replace_latest_fn error (${err})`);
-					}
-				}
-			}
-		}
+		await update_user(io, username);
 	}
 
 	update_all_completed = true;
 	console.log("update all completed");
 }
+
+async function update_user(io, username) {
+	let user = null;
+	try {
+		user = await get(username);
+
+		if (user.last_updated_epoch && utils.now_epoch() - user.last_updated_epoch >= 30) {
+			const pre_update_category_sync_info = JSON.parse(JSON.stringify(user.category_sync_info));
+
+			await user.update();
+			
+			const post_update_category_sync_info = user.category_sync_info;
+			
+			const socket_id = usernames_to_socket_ids[user.username];
+			if (socket_id) {
+				const categories_w_new_data = [];
+				for (const category in user.category_sync_info) {
+					(post_update_category_sync_info[category].latest_new_data_epoch > pre_update_category_sync_info[category].latest_new_data_epoch ? categories_w_new_data.push(category) : null);
+				}
+				(categories_w_new_data.length > 0 ? io.to(socket_id).emit("show refresh alert", categories_w_new_data) : null);
+
+				io.to(socket_id).emit("store last updated epoch", user.last_updated_epoch);
+			}
+		}
+	} catch (err) {
+		if (err != `Error: user (${username}) dne`) {
+			console.error(err);
+			logger.error(`user (${username}) update error (${err})`);
+
+			if (err.statusCode == 403 && err.options.qs.before) {
+				try {
+					switch (err.extras.category) {
+						case "saved":
+						case "awarded":
+							await user.replace_latest_fn(err.extras.category, "mixed");
+							break;
+						case "created":
+							await Promise.all([
+								user.replace_latest_fn(err.extras.category, "posts"),
+								user.replace_latest_fn(err.extras.category, "comments")
+							]);
+							break;
+						case "upvoted":
+						case "downvoted":
+						case "hidden":
+							await user.replace_latest_fn(err.extras.category, "posts");
+							break;
+						default:
+							break;
+					}
+					await sql.update_user(user.username, {
+						category_sync_info: JSON.stringify(user.category_sync_info)
+					});
+				} catch (err) {
+					console.error(err);
+					logger.error(`user (${username}) replace_latest_fn error (${err})`);
+				}
+			}
+		}
+	}
+}
+
 function cycle_update_all(io) {
 	update_all(io).catch((err) => console.error(err));
 
@@ -616,5 +658,6 @@ export {
 	socket_ids_to_usernames,
 	fill_usernames_to_socket_ids,
 	get,
+	update_user,
 	cycle_update_all
 };
