@@ -5,6 +5,9 @@ let plugin = {
 	getId() {
 		return 'imgbb';
 	},
+	initialize(){
+
+	},
 	receiveItem(item) {
 		// Nothing to do here
 	},
