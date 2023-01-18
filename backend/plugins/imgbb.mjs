@@ -9,13 +9,15 @@ let plugin = {
 		// Nothing to do here
 	},
 	async receiveUserItem(user, category, item, config) {
-		if (category !== 'saved') {
+		if (item.type !== 'post' || 
+			category !== 'saved' || 
+			(item.postType !== 'image' && item.postType !== 'gif')) {
 			return;
 		}
 		axios.post(`${baseUrl}`, {}, {
 			params: {
 				key: process.env.IMGBB_API_KEY,
-				image: item.url,
+				image: item.snooItem.url,
 				// name: ''
 			}
 		});

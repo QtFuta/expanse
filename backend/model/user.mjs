@@ -1,5 +1,6 @@
 import * as utils from '#models/utils.mjs';
 import * as plugins from '#models/plugins.mjs';
+import Item from '#models/Item.mjs';
 
 const backend = utils.getImportPath();
 
@@ -154,7 +155,8 @@ class User {
 
 				this.new_data.category_item_ids[category].add(item.id);
 
-				this.new_data.objects.set(item.id, item);
+				if (!this.new_data.objects.has(item.id))
+					this.new_data.objects.set(item.id, new Item(item));
 
 				this.sub_icon_urls_to_get.add(item.subreddit_name_prefixed);
 			}
@@ -509,7 +511,7 @@ class User {
 	}
 	async getNewItems() {
 		let ids = [];
-		this.new_data.objects.forEach((value) => ids.push(value.id));
+		this.new_data.objects.forEach((value) => ids.push(value.snooItem.id));
 		let dbItems = await sql.get_items(ids);
 
 		let newItems = [];
