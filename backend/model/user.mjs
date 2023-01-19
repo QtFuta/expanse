@@ -1,6 +1,6 @@
 import * as utils from '#models/utils.mjs';
 import * as plugins from '#models/plugins.mjs';
-import Item from '#models/Item.mjs';
+import Item from '#models/item.mjs';
 
 const backend = utils.getImportPath();
 
