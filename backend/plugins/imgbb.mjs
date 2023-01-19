@@ -14,19 +14,29 @@ let plugin = {
 	async receiveUserItem(user, category, item, config) {
 		if (item.type !== 'post' || 
 			category !== 'saved' || 
-			(item.postType !== 'image' && item.postType !== 'gif')) {
+			(item.postType !== 'image' && item.postType !== 'gif' && item.postType !== 'gallery')) {
 			return;
 		}
-		axios.post(`${baseUrl}`, {}, {
-			params: {
-				key: process.env.IMGBB_API_KEY,
-				image: item.snooItem.url,
-				// name: ''
+		if (item.postType === 'gallery') {
+			let keys = Object.keys(item.snooItem.media_metadata);
+			for (const key of keys) {
+				await this.uploadImage(item.snooItem.media_metadata[key].s.u);
 			}
-		});
+		} else {
+			await this.uploadImage(item.snooItem.url);
+		}
 	},
 	getAvailableConfig() {
 		
+	},
+	async uploadImage(url) {
+		return await axios.post(`${baseUrl}`, {}, {
+			params: {
+				key: process.env.IMGBB_API_KEY,
+				image: url,
+				// name: ''
+			}
+		});
 	}
 }
 
