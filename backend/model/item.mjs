@@ -46,7 +46,7 @@ function processPost(item) {
 		url.endsWith('mp4')) {
 		item.postType = 'video';
 	}
-	else if (snooItem.gallery_data) {
+	else if (snooItem.is_gallery) {
 		item.postType = 'gallery';
 	}
 	else if (!url.includes(item.permalink)) {
