@@ -3,6 +3,7 @@
 .*
 node_modules/
 backups/
+plugins_data/
 logs/
 tempfiles/
 build/

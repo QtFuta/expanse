@@ -5,6 +5,11 @@ volumes:
             o: bind
             type: none
             device: ${PWD}/backend/sqlite
+    plugins_data:
+        driver_opts:
+            o: bind
+            type: none
+            device: ${PWD}/backend/plugins_data
     backups:
         driver_opts:
             o: bind
@@ -20,6 +25,7 @@ services:
         working_dir: /app/
         volumes:
             - db:/app/backend/sqlite
+            - plugins_data:/app/backend/plugins_data
             - backups:/app/backend/backups/
         networks:
             - net
