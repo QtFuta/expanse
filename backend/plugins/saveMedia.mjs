@@ -22,21 +22,23 @@ let plugin = {
 		if (item.postType === 'gallery') {
 			let keys = Object.keys(item.snooItem.media_metadata);
 			for (const key of keys) {
-				await this.saveContent(item.snooItem.media_metadata[key].s.u);
+				await this.saveContent(user, item.snooItem.media_metadata[key].s.u);
 			}
 		} else {
-			await this.saveContent(item.snooItem.url, item.snooItem);
+			await this.saveContent(user, item.snooItem.url, item.snooItem);
 		}
 	},
 	getAvailableConfig() {
 
 	},
-	async saveContent(url, post = null) {
+	async saveContent(user, url, post = null) {
 		const res = await this.getContent(url, post);
 		if (res == null) return;
 		url = res.request.res.responseUrl;
 		const fileName = this.getFileName(url, res);
-		await fs.writeFile(`./plugins_data/media/${fileName}`, res.data);
+		const path = `./plugins_data/media/${user}`;
+		await fs.mkdir(path, {recursive: true});
+		await fs.writeFile(`${path}/${fileName}`, res.data);
 	},
 	async getContent(url, post) {
 		if (url.includes('imgur') && url.includes('gifv')) url = url.replace(/\.gifv$/g, '.mp4');
