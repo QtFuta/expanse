@@ -2,15 +2,34 @@ import axios from 'axios';
 import URL from 'node:url';
 import { v1 as uuid } from 'uuid';
 import fs from 'node:fs/promises';
+import Database from 'better-sqlite3';
+
+const dataPath = './plugins_data/media';
+let client = new Database(process.env.SQLITE_DB_PATH);
 
 let plugin = {
 	getId() {
 		return 'saveMedia';
 	},
-	initialize(){
+	async initialize() {
+		await fs.mkdir(dataPath, {recursive: true});
+		client = new Database(`${dataPath}/items.db`);
+		client.transaction(() => {
+			client.exec(`
+				create table if not exists 
+					item (
+						id TEXT primary key, 
+						url TEXT not null, 
+						file TEXT not null
+					)
+				;
+			`);
+		})();
+	},
+	async getItem(user, item_id) {
 
 	},
-	receiveItem(item) {
+	async receiveItem(item) {
 		// Nothing to do here
 	},
 	async receiveUserItem(user, category, item, config) {
@@ -22,7 +41,7 @@ let plugin = {
 		if (item.postType === 'gallery') {
 			let keys = Object.keys(item.snooItem.media_metadata);
 			for (const key of keys) {
-				await this.saveContent(user, item.snooItem.media_metadata[key].s.u);
+				await this.saveContent(user, item.snooItem.media_metadata[key].s.u, item.snooItem);
 			}
 		} else {
 			await this.saveContent(user, item.snooItem.url, item.snooItem);
@@ -31,14 +50,19 @@ let plugin = {
 	getAvailableConfig() {
 
 	},
-	async saveContent(user, url, post = null) {
+	async saveContent(user, url, post) {
 		const res = await this.getContent(url, post);
 		if (res == null) return;
 		url = res.request.res.responseUrl;
-		const fileName = this.getFileName(url, res);
-		const path = `./plugins_data/media/${user}`;
+		const path = `${dataPath}/${user}`;
 		await fs.mkdir(path, {recursive: true});
-		await fs.writeFile(`${path}/${fileName}`, res.data);
+		const filePath = `${path}/${this.getFileName(url, res)}`;
+		await fs.writeFile(filePath, res.data);
+		this.saveInDB(post, url, filePath);
+	},
+	async saveInDB(post, url, filePath) {
+		const query = 'INSERT INTO item values(?, ?, ?)';
+		client.prepare(query).run(post.id, url, filePath);
 	},
 	async getContent(url, post) {
 		if (url.includes('imgur') && url.includes('gifv')) url = url.replace(/\.gifv$/g, '.mp4');

@@ -22,7 +22,7 @@ const sql = await import(process.env.DB_DRIVER === "sqlite" ? `${import_path}/mo
 const user = await import(`${import_path}/model/user.mjs`);
 
 plugins.validatePlugins();
-plugins.initializePlugins();
+await plugins.initializePlugins();
 
 const sendfile_options = { root : process.env.FRONTEND_PATH };
 const app = express();
