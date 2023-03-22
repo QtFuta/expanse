@@ -2,6 +2,7 @@
 	import * as globals from "frontend/source/globals.js";
 	import * as utils from "frontend/source/utils.js";
 	import Navbar from "frontend/source/components/navbar.svelte";
+	import ItemList from "./item_list.svelte";
 
 	import * as svelte from "svelte";
 	import axios from "axios";
@@ -12,6 +13,9 @@
 <script>
 	export let username;
 	
+	let items = [];
+	let isLoading = true;
+	let isDataProvided = true;
 	let [
 		last_updated_epoch,
 		last_updated_wrappers_update_interval_id,
@@ -24,7 +28,6 @@
 		subreddit_select_dropdown,
 		category_btn_group,
 		type_btn_group,
-		item_list,
 		skeleton_list,
 		new_data_alert_wrapper
 	] = [];
@@ -33,24 +36,6 @@
 	let active_type = "all";
 	let active_sub = "all";
 	let active_search_str = "";
-	let items_currently_listed = 0;
-
-	const intersection_observer = new IntersectionObserver((entries) => {
-		for (const entry of entries) {
-			if (entry.intersectionRatio > 0) { // observed element is in view
-				intersection_observer.unobserve(entry.target);
-				list_next_items(25).catch((err) => console.error(err));
-			}
-		}
-	}, {
-		root: document,
-		rootMargin: "0px",
-		threshold: 0
-	});
-
-	const debounced_hide_popover = underscore.debounce(() => {
-		jQuery("[data-toggle='popover']").popover("hide");
-	}, 100, true);
 
 	async function handle_body_click(evt) {
 		(evt.target.classList.contains("dropdown-item") || evt.target.parentElement?.classList.contains("dropdown-item") ? subreddit_select_btn.blur() : null);
@@ -231,20 +216,22 @@
 	}
 
 	function show_skeleton_loading() {
-		item_list.scrollTop = 0;
-		item_list.classList.add("d-none");
+		isLoading = true;
 		skeleton_list.classList.remove("d-none");
 	}
 
 	function hide_skeleton_loading() {
 		skeleton_list.classList.add("d-none");
-		item_list.classList.remove("d-none");
-		item_list.scrollTop = 0;
+		isLoading = false;
+	}
+
+	function is_data_provided() {
+		isDataProvided = !(active_type == "comments" && (active_category == "upvoted" || active_category == "downvoted" || active_category == "hidden"));
+		return isDataProvided;
 	}
 
 	async function list_next_items(count) {
-		if (active_type == "comments" && (active_category == "upvoted" || active_category == "downvoted" || active_category == "hidden")) {
-			item_list.innerHTML = `<div class="list-group-item text-light lead">${active_category} comment data not provided by Reddit api</div>`;
+		if (!is_data_provided()) {
 			return;
 		}
 
@@ -254,44 +241,33 @@
 			sub: active_sub,
 			search_str: active_search_str
 		};
-		globals_r.socket.emit("get data", filter, count, items_currently_listed);
+		globals_r.socket.emit("get data", filter, count, items.length);
 
 		await new Promise((resolve, reject) => {
 			globals_r.socket.once("got data", (data) => {
-				if (items_currently_listed == 0 && Object.keys(data.items).length == 0) {
-					item_list.innerHTML = '<div class="list-group-item text-light lead">no results</div>';
+				if (items.length == 0 && Object.keys(data.items).length == 0) {
 					resolve();
 				}
 
-				const x = items_currently_listed + count;
-				for (const item_id in data.items) {
-					const item = data.items[item_id];
-
-					item_list.insertAdjacentHTML("beforeend", `
-						<div id="${item_id}" class="list-group-item list-group-item-action text-left text-light p-1" data-url="${item.url}" data-type="${item.type}">
-							<a href="https://www.reddit.com/${item.sub}" target="_blank"><img src="${data.item_sub_icon_urls[item.sub]}" class="rounded-circle${(data.item_sub_icon_urls[item.sub] == "#" ? "" : " border border-light")}"/></a><small><a href="https://www.reddit.com/${item.sub}" target="_blank"><b class="ml-2">${item.sub}</b></a> &bull; <a href="https://www.reddit.com/${item.author}" target="_blank">${item.author}</a> &bull; <i data-url="${item.url}" data-toggle="tooltip" data-placement="top" title="${utils.epoch_to_formatted_datetime(item.created_epoch)}">${utils.time_since(item.created_epoch)}</i></small>
-							<p class="lead line_height_1 m-0" data-url="${item.url}"><${(item.type == "post" ? "b" : "small")} class="content_wrapper noto_sans">${underscore.escape(item.content)}</${(item.type == "post" ? "b" : "small")}></p>
-							<button type="button" class="delete_btn btn btn-sm btn-outline-secondary shadow-none border-0 py-0" data-toggle="popover" data-placement="right" data-title="delete item from" data-content='<div class="${item_id}"><div><span class="row_1_popover_btn btn btn-sm btn-primary float-left px-0">expanse</span><span class="row_1_popover_btn btn btn-sm btn-primary float-center px-0">Reddit</span><span class="row_1_popover_btn btn btn-sm btn-primary float-right px-0">both</span></div><div><span class="row_2_popover_btn btn btn-sm btn-secondary float-left mt-2">cancel</span><span class="row_2_popover_btn delete_item_confirm_btn btn btn-sm btn-danger float-right mt-2">confirm</span></div><div class="clearfix"></div></div>' data-html="true">delete</button> <button type="button" class="copy_link_btn btn btn-sm btn-outline-secondary shadow-none border-0 py-0">copy link</button> <button type="button" class="${(item.type == "post" ? "text" : "renew")}_btn btn btn-sm btn-outline-secondary shadow-none border-0 py-0">${(item.type == "post" ? "text" : "renew")}</button>
-							${(item.type == "post" ? '<p class="post_text_wrapper noto_sans line_height_1 d-none m-0"></p>' : "")}
-						</div>
-					`);
-
-					(++items_currently_listed == x-Math.floor(count/2)-1 ? intersection_observer.observe(document.querySelector(`[id="${item_id}"]`)) : null);
-
-					jQuery('[data-toggle="tooltip"]').tooltip("enable");
-					jQuery('[data-toggle="popover"]').popover("enable");
-				}
+				const newItems = Object.entries(data.items).map((value) => {
+					return [
+						...value,
+						data.item_sub_icon_urls[value[1].sub]
+					];
+				});
+				items = [...items, ...newItems];
 
 				resolve();
 			});
 		});
 	}
 
+	function getMoreItems() {
+		list_next_items(25).catch((err) => console.error(err));
+	}
+
 	async function refresh_item_list() {
-		intersection_observer.disconnect(); // stops observing all currently observed elements. (does NOT stop the intersection observer. i.e., it can still observe new elements)
-		item_list.innerHTML = "";
-		item_list.scrollTop = 0;
-		items_currently_listed = 0;
+		items = [];
 
 		await list_next_items(25);
 	}
@@ -424,10 +400,6 @@
 				key: "Enter"
 			}));
 		});
-
-		item_list.addEventListener("scroll", (evt) => {
-			debounced_hide_popover();
-		});
 	});
 	svelte.onDestroy(() => {
 		globals_r.socket.off("store last updated epoch");
@@ -481,7 +453,11 @@
 		</form>
 	</div>
 	<div class="card card-body bg-dark border-top-0 mt-n2 pt-0 pb-2 pr-2">
-		<div bind:this={item_list} class="list-group list-group-flush border-0 d-none" id="item_list"></div>
+		{#if isDataProvided}
+			<ItemList on:reachingEnd={getMoreItems} items={items} hide={isLoading} />
+		{:else}
+			<div class="list-group-item text-light lead">{active_category} comment data not provided by Reddit api</div>
+		{/if}
 		<div bind:this={skeleton_list} class="list-group" id="skeleton_list">
 			{#each {length: 7} as _, idx}
 				<div class="skeleton_item rounded mb-2"></div>
