@@ -18,7 +18,8 @@ function validatePlugins() {
 			!plugin.can('receiveItem') ||
 			!plugin.can('receiveUserItem') ||
 			!plugin.can('getAvailableConfig') ||
-			!plugin.can('getItem')) {
+			!plugin.can('getItem') ||
+			!plugin.can('handleRequest')) {
 				throw new Error(`A plugin is not formatted properly`);
 			}
 	}

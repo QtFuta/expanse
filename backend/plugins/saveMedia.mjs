@@ -3,9 +3,10 @@ import URL from 'node:url';
 import { v1 as uuid } from 'uuid';
 import fs from 'node:fs/promises';
 import Database from 'better-sqlite3';
+import mime from 'mime';
 
 const dataPath = './plugins_data/media';
-let client = new Database(process.env.SQLITE_DB_PATH);
+let client;
 
 let plugin = {
 	getId() {
@@ -27,7 +28,20 @@ let plugin = {
 		})();
 	},
 	async getItem(user, item_id) {
+		const item = client.prepare('SELECT * FROM item WHERE id=?').get(item_id);
+		if (!item) return null;
+		const type = mime.getType(item.file);
+		let tag = '';
+		if(type.includes('image/')) tag = 'img';
+		else if (type.includes('video')) tag = 'video';
 
+		return `<${tag} src="plugins/${this.getId()}/${item_id}" />`;
+	},
+	async handleRequest(req, res) {
+		const item = client.prepare('SELECT * FROM item WHERE id=?').get(req.params['0']);
+		if (!item) return res.sendStatus(404);
+
+		res.download(item.file);
 	},
 	async receiveItem(item) {
 		// Nothing to do here
@@ -77,20 +91,13 @@ let plugin = {
 	getFileName(url, response) {
 		if (typeof url === 'string')
 			url = URL.parse(url);
-		const fileNameRegex = /([\w,\s-]+(\.[a-z0-9]{3,4}))$/i;
-		const contentTypeRegex = /.+\/(\w+)/;
-		let fileNameGroups;
 		let fileExt = '';
 		if (response.headers.has('content-disposition')) {
 			const contentDispositionRegexp = /filename=\"(.+(\..+))\"/gi;
 			fileExt = contentDispositionRegexp.exec(response.headers.get('content-disposition'))[2];
 		}
-		// This can be inconsistent with actual media type (e.g. imgur gif is mp4 file)
-		// else if(fileNameGroups = fileNameRegex.exec(url.pathname)) {
-		// 	fileExt = fileNameGroups[2];
-		// }
 		else {
-			fileExt = '.'+contentTypeRegex.exec(response.headers.getContentType())[1];
+			fileExt = '.'+mime.getExtension(response.headers.getContentType());
 		}
 		return uuid() + fileExt;
 	}

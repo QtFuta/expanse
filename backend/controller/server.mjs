@@ -211,6 +211,10 @@ app.get("/purge", async (req, res) => {
 	}
 });
 
+app.get("/plugins/:pluginId/*", async (req, res) => {
+	plugins.getPlugins().find((value) => value.getId() == req.params.pluginId)?.handleRequest(req, res);
+});
+
 app.all("*", (req, res) => {
 	res.status(404).sendFile(`build/index.html`, sendfile_options);
 });
@@ -268,6 +272,20 @@ io.on("connect", (socket) => {
 		} catch (err) {
 			console.error(err);
 		}
+	});
+
+	socket.on("get plugin data", async (item_id) => {
+		const resPromises = plugins.getPlugins().map((plugin) => {
+			return plugin.getItem('', item_id).then((data) => {
+				return {
+					id: plugin.getId(),
+					data
+				};
+			})
+		});
+		Promise.all(resPromises).then((value) => {
+			io.to(socket.id).emit("got plugin data", value);
+		});
 	});
 
 	socket.on("get placeholder", async (filter) => {
