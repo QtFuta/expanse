@@ -36,7 +36,7 @@
 		<div class="row">
 			<div class="col-1 col-sm-3"></div>
 			<div class="col-10 col-sm-6">
-				<a id="login_anchor" class="d-flex justify-content-center" href="{globals_r.backend}/login" rel="external"><p class="rounded-pill lead text-white mt-2" id="login_btn">log in with <img id="reddit_logo" class="ml-n2 mr-n2 mb-1" src="/reddit logo on dark.svg" alt="reddit logo"/></p></a>
+				<a id="login_anchor" class="d-flex justify-content-center" href="{globals_r.backend}/login" rel="external"><p class="rounded-pill lead text-white mt-2" id="login_btn">log in with <img id="reddit_logo" class="ml-n2 mr-n2 mb-1 icon" src="/reddit logo on dark.svg" alt="reddit logo"/></p></a>
 			</div>
 			<div class="col-1 col-sm-3"></div>
 		</div>

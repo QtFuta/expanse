@@ -25,7 +25,7 @@
 
 <div id="{item_id}" class="list-group-item list-group-item-action text-left text-light p-1" data-url="{item.url}" data-type="{item.type}">
 	<a href="https://www.reddit.com/{item.sub}" target="_blank">
-		<img src="{subIcon}" alt="{item.sub} icon" class="rounded-circle{(subIcon == "#" ? "" : " border border-light")}"/>
+		<img src="{subIcon}" alt="{item.sub} icon" class="icon rounded-circle{(subIcon == "#" ? "" : " border border-light")}"/>
 	</a>
 	<small>
 		<a href="https://www.reddit.com/{item.sub}" target="_blank">
