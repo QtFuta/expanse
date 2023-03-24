@@ -35,7 +35,7 @@ let plugin = {
 		if(type.includes('image/')) tag = 'img';
 		else if (type.includes('video')) tag = 'video';
 
-		return `<${tag} src="plugins/${this.getId()}/${item_id}" />`;
+		return `<${tag} src="plugins/${this.getId()}/${item_id}" style="width: 100%;height: 100%;object-fit: contain;" />`;
 	},
 	async handleRequest(req, res) {
 		const item = client.prepare('SELECT * FROM item WHERE id=?').get(req.params['0']);

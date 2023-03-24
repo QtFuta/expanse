@@ -3,6 +3,7 @@
 	import * as utils from "frontend/source/utils.js";
 	import Navbar from "frontend/source/components/navbar.svelte";
 	import ItemList from "./item_list.svelte";
+	import PluginDataModal from "./plugin_data_modal.svelte";
 
 	import * as svelte from "svelte";
 	import axios from "axios";
@@ -464,4 +465,5 @@
 			{/each}
 		</div>
 	</div>
+	<PluginDataModal />
 </div>

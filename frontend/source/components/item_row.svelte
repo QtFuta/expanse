@@ -1,6 +1,7 @@
 <script context="module">
 	import * as globals from "frontend/source/globals.js";
 	import * as utils from "frontend/source/utils.js";
+	import { itemModalData } from '../store.js';
 	import underscore from "underscore";
 
 	const globals_r = globals.readonly;
@@ -15,10 +16,7 @@
 	function getPluginData(event) {
 		globals_r.socket.emit("get plugin data", event.target.parentElement.id);
 		globals_r.socket.once("got plugin data", (data) => {
-			const div = document.querySelector('#tmp_'+item_id);
-			console.log(data);
-			const media = data[0].data;
-			div.innerHTML = media;
+			$itemModalData = data;
 		});
 	}
 </script>
@@ -45,8 +43,6 @@
 	<button type="button" class="copy_link_btn btn btn-sm btn-outline-secondary shadow-none border-0 py-0">copy link</button> 
 	<button type="button" class="{(item.type == "post" ? "text" : "renew")}_btn btn btn-sm btn-outline-secondary shadow-none border-0 py-0">{(item.type == "post" ? "text" : "renew")}</button>
 	<button type="button" on:click={getPluginData} class="btn btn-sm btn-outline-secondary shadow-none border-0 py-0">Plugins data</button> 
-	<!-- svelte-ignore a11y-media-has-caption -->
-	<div id="tmp_{item_id}"/>
 	{#if item.type == "post"}
 		<p class="post_text_wrapper noto_sans line_height_1 d-none m-0"></p>
 	{/if}
