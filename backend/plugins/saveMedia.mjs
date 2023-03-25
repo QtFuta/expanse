@@ -19,7 +19,7 @@ let plugin = {
 			client.exec(`
 				create table if not exists 
 					item (
-						id TEXT primary key, 
+						id TEXT, 
 						url TEXT not null, 
 						file TEXT not null
 					)
@@ -29,11 +29,12 @@ let plugin = {
 	},
 	async getItem(user, item_id) {
 		const item = client.prepare('SELECT * FROM item WHERE id=?').get(item_id);
-		if (!item) return null;
+		if (!item) return "<div>No data found</div>";
 		const type = mime.getType(item.file);
 		let tag = '';
 		if(type.includes('image/')) tag = 'img';
 		else if (type.includes('video')) tag = 'video';
+		else if (type.includes('text/html')) tag = 'iframe';
 
 		return `<${tag} src="plugins/${this.getId()}/${item_id}" style="width: 100%;height: 100%;object-fit: contain;" />`;
 	},
@@ -41,7 +42,7 @@ let plugin = {
 		const item = client.prepare('SELECT * FROM item WHERE id=?').get(req.params['0']);
 		if (!item) return res.sendStatus(404);
 
-		res.download(item.file);
+		res.sendFile(item.file, {root: './'});
 	},
 	async receiveItem(item) {
 		// Nothing to do here
@@ -57,6 +58,8 @@ let plugin = {
 			for (const key of keys) {
 				await this.saveContent(user, item.snooItem.media_metadata[key].s.u, item.snooItem);
 			}
+		} else if (item.postType === 'video' && item.snooItem.domain === 'v.redd.it') {
+			await this.saveContent(user, item.snooItem.media.reddit_video.fallback_url, item.snooItem);
 		} else {
 			await this.saveContent(user, item.snooItem.url, item.snooItem);
 		}
