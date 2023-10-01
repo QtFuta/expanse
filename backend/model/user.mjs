@@ -13,7 +13,7 @@ let update_all_completed = null;
 
 const usernames_to_socket_ids = {};
 const socket_ids_to_usernames = {};
-const categories = ["saved", "created", "upvoted", "downvoted", "hidden", "awarded"];
+const categories = ["saved", "created", "upvoted", "downvoted", "hidden"];
 
 class User {
 	constructor(username, refresh_token, dummy=false) {
@@ -108,10 +108,15 @@ class User {
 				listing = await this.me.getHiddenContent(options);
 				break;
 			case "awarded": // posts, comments
-				listing = await this.me._getListing({
-					uri: `u/${this.username}/gilded/given`,
-					qs: options
-				});
+				/* Does not exists anymore */
+				// listing = await this.me._getListing({
+				// 	uri: `u/${this.username}/gilded/given`,
+				// 	qs: options
+				// });
+				listing = {
+					length: 0,
+					isFinished: true
+				}
 				break;
 			default:
 				break;
