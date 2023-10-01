@@ -11,9 +11,9 @@ selfhosted multi-user web app for externally storing Reddit items (saved, create
 	- import csv data from [Reddit data request](https://www.reddit.com/settings/data-request)
 	- export data as json
 - [demo](https://www.youtube.com/watch?v=4pxXM98ewIc)
-- prereqs::
+- requirements::
 	- git
-	- docker
+	- docker ([managed](https://docs.docker.com/engine/install/linux-postinstall/#manage-docker-as-a-non-root-user)/[rootless](https://docs.docker.com/engine/security/rootless))
 	- docker compose
 - setup::
 	1. clone repo: `git clone https://github.com/jc9108/expanse.git`
@@ -28,4 +28,3 @@ selfhosted multi-user web app for externally storing Reddit items (saved, create
 	1. cd into repo
 	2. update: `sh ./run.sh prod update`
 - <details><summary>(optional) systemd service</summary><ol><li>cd into repo</li><li>update repo path in service file: <code>sed -i "s./opt/expanse.$PWD.g" ./expanse.service</code></li><li>allow executing <code>./run.sh</code>: <code>chmod +x ./run.sh</code></li><li>enable and start service: <code>systemctl enable ./expanse.service --now</code></li></ol></details>
-- [hosted version](https://github.com/jc9108/eternity)
