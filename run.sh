@@ -47,5 +47,9 @@ elif [ "$1" = "prod" ]; then
 		sudo PWD=${PWD} docker compose -f $COMPOSER_FILE build
 		sh ./run.sh prod up
 		return
+	elif [ "$2" = "logs" ]; then
+		shift
+		PWD=${PWD} docker compose -f $COMPOSER_FILE $@
+		return
 	fi
 fi
