@@ -44,10 +44,6 @@ class User {
 				hidden: {
 					latest_fn_posts: null,
 					latest_new_data_epoch: null
-				},
-				awarded: {
-					latest_fn_mixed: null,
-					latest_new_data_epoch: null
 				}
 			};
 			this.last_updated_epoch = null;
@@ -177,7 +173,7 @@ class User {
 		this.category_sync_info[category][`latest_fn_${type}`] = latest_fn;
 	}
 	async sync_category(category, type) {
-		let options = {
+		const options = {
 			limit: 5,
 			before: this.category_sync_info[category][`latest_fn_${type}`] // "before" is actually chronologically after. https://www.reddit.com/dev/api/#listings
 		};
@@ -322,7 +318,7 @@ class User {
 		console.log(`updating user (${this.username})`);
 
 		let progress = (io ? 0 : null);
-		const complete = (io ? 8 : null);
+		const complete = (io ? 7 : null);
 
 		this.requester = reddit.create_requester(cryptr.decrypt(this.reddit_api_refresh_token_encrypted));
 		this.me = await this.requester.getMe();
@@ -335,7 +331,8 @@ class User {
 		};
 		this.sub_icon_urls_to_get = new Set();
 		this.imported_fns_to_delete = new Set();
-		
+
+		const categories = ["saved", "created", "upvoted", "downvoted", "hidden"];
 		for (const category of categories) {
 			this.new_data.category_item_ids[category] = new Set();
 		}
@@ -413,20 +410,7 @@ class User {
 			}
 		});
 
-		const a_promise = new Promise(async (resolve, reject) => {
-			try {
-				await this.sync_category("awarded", "mixed");
-				(io ? io.to(socket_id).emit("update progress", ++progress, complete) : null);
-				resolve();
-			} catch (err) {
-				err.extras = {
-					category: "awarded"
-				};
-				reject(err);
-			}
-		});
-
-		await Promise.all([s_promise, c_promise, u_promise, d_promise, h_promise, a_promise]);
+		await Promise.all([s_promise, c_promise, u_promise, d_promise, h_promise]);
 		await this.get_new_item_icon_urls();
 
 		let newItems = await this.getNewItems();

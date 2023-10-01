@@ -26,7 +26,7 @@ function create_logger(level) { // https://github.com/winstonjs/winston#logging-
 		transports: [
 			// new winston.transports.Console(),
 			new winston.transports.File({
-				filename: `${backend}/logs/${(level == "info" ? "log" : level)}.txt`
+				filename: `${process.env.backend}/logs/${(level == "info" ? "log" : level)}.txt`
 			})
 		]
 	});

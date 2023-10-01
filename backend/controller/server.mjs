@@ -12,6 +12,8 @@ import * as utils from '#models/utils.mjs';
 import * as plugins from '#models/plugins.mjs';
 
 const backend = utils.getBackendPath();
+process.env.backend = utils.getBackendPath();
+process.env.frontend = process.env.backend.replace("backend", "frontend");
 const import_path = utils.getImportPath();
 
 /* Can't use backend path since it uses file:// protocol in windows */
@@ -24,7 +26,7 @@ const user = await import(`${import_path}/model/user.mjs`);
 plugins.validatePlugins();
 await plugins.initializePlugins();
 
-const sendfile_options = { root : process.env.FRONTEND_PATH };
+const sendfile_options = { root : process.env.frontend };
 const app = express();
 const server = http.createServer(app);
 const io = new socket_io_server.Server(server, {
@@ -47,7 +49,7 @@ app.use(fileupload({
 	}
 }));
 
-app.use("/", express.static(`${process.env.FRONTEND_PATH}/build/`));
+app.use("/", express.static(`${process.env.frontend}/build/`));
 
 passport.use(new passport_reddit.Strategy({
 	clientID: process.env.REDDIT_APP_ID,
@@ -179,8 +181,8 @@ app.post("/upload", (req, res) => {
 
 app.get("/download", (req, res) => {
 	if (req.isAuthenticated()) {
-		res.download(`${backend}/tempfiles/${req.query.filename}.json`, `${req.query.filename}.json`, () => {
-			filesystem.promises.unlink(`${backend}/tempfiles/${req.query.filename}.json`).catch((err) => console.error(err));
+		res.download(`${process.env.backend}/tempfiles/${req.query.filename}.json`, `${req.query.filename}.json`, () => {
+			filesystem.promises.unlink(`${process.env.backend}/tempfiles/${req.query.filename}.json`).catch((err) => console.error(err));
 		});
 	} else {
 		res.status(401).sendFile(`build/index.html`, sendfile_options);
@@ -196,7 +198,7 @@ app.get("/logout", (req, res) => {
 	}
 });
 
-app.get("/purge", async (req, res) => {
+app.delete("/purge", async (req, res) => {
 	if (req.isAuthenticated() && req.query.socket_id == user.usernames_to_socket_ids[req.user.username]) {
 		try {
 			await req.user.purge();

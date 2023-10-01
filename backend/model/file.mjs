@@ -8,11 +8,11 @@ import * as xlsx from "xlsx";
 import filesystem from "fs";
 
 async function init() {
-	for (const dir of [`${backend}/logs/`, `${backend}/tempfiles/`, `${backend}/backups/`]) {
+	for (const dir of [`${process.env.backend}/logs/`, `${process.env.backend}/tempfiles/`, `${process.env.backend}/backups/`]) {
 		if (filesystem.existsSync(dir)) {
 			if (process.env.RUN == "dev") {
 				const files = await filesystem.promises.readdir(dir);
-				await Promise.all(files.map((file, idx, arr) => (dir == `${backend}/logs/` ? filesystem.promises.truncate(`${dir}/${file}`.replace("//", "/"), 0) : filesystem.promises.unlink(`${dir}/${file}`.replace("//", "/")))));
+				await Promise.all(files.map((file, idx, arr) => (dir == `${process.env.backend}/logs/` ? filesystem.promises.truncate(`${dir}/${file}`.replace("//", "/"), 0) : filesystem.promises.unlink(`${dir}/${file}`.replace("//", "/")))));
 			}
 		} else {
 			filesystem.mkdirSync(dir);
@@ -80,7 +80,7 @@ async function parse_import(username, files) {
 
 async function create_export(username) {
 	const export_data = {};
-	const categories = ["saved", "created", "upvoted", "downvoted", "hidden", "awarded"];
+	const categories = ["saved", "created", "upvoted", "downvoted", "hidden"];
 	for (const category of categories) {
 		const filter = {
 			category: category,
@@ -92,10 +92,10 @@ async function create_export(username) {
 	}
 
 	const filename = Math.random().toString().slice(2, 17);
-	await filesystem.promises.writeFile(`${backend}/tempfiles/${filename}.json`, JSON.stringify(export_data, null, 4), "utf-8");
+	await filesystem.promises.writeFile(`${process.env.backend}/tempfiles/${filename}.json`, JSON.stringify(export_data, null, 4), "utf-8");
 
 	setTimeout(() => {
-		filesystem.promises.unlink(`${backend}/tempfiles/${filename}.json`).catch((err) => null);
+		filesystem.promises.unlink(`${process.env.backend}/tempfiles/${filename}.json`).catch((err) => null);
 	}, 14400000); // 4h
 	
 	return filename;
