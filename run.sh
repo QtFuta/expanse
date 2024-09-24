@@ -5,7 +5,7 @@ if [ "$1" != "dev" ] && [ "$1" != "prod" ]; then
 	return
 fi
 
-export $(cat backend/.env_$1 | sed -E -e 's/#.*//' -e 's/="/=/' -e 's/(" *$|" *#)//' -e '/^$/d' | xargs -d '\n')
+export $(cat backend/.env_$1 | sed -E -e 's/#.*//' -e 's/="/=/' -e 's/(".*$|" *#)//' -e '/^\s*$/d' | xargs -d '\n')
 COMPOSER_FILE=./compose.%env%%db_type%.yaml
 COMPOSER_FILE=$(echo $COMPOSER_FILE | sed "s/%env%/$1/")
 [ $DB_DRIVER = 'sqlite' ] && DB_TYPE=".lite" || DB_TYPE=""
