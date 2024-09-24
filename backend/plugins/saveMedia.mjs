@@ -4,6 +4,7 @@ import { v1 as uuid } from 'uuid';
 import fs from 'node:fs/promises';
 import Database from 'better-sqlite3';
 import mime from 'mime';
+import { randomBytes } from 'node:crypto';
 
 const dataPath = './plugins_data/media';
 let client;
@@ -73,7 +74,10 @@ let plugin = {
 		url = res.request.res.responseUrl;
 		const path = `${dataPath}/${user}`;
 		await fs.mkdir(path, {recursive: true});
-		const filePath = `${path}/${this.getFileName(url, res)}`;
+		const fileNameData = this.getFileRelativePath(url, res);
+		const fileSubPath = `${path}/${fileNameData.subPath}`;
+		await fs.mkdir(fileSubPath, {recursive: true});
+		const filePath = `${fileSubPath}/${fileNameData.fileName}`;
 		await fs.writeFile(filePath, res.data);
 		this.saveInDB(post, url, filePath);
 	},
@@ -91,7 +95,7 @@ let plugin = {
 		res = await axios.get(post.preview.images[0].variants.mp4.source.url, {responseType: 'stream'});
 		return res;
 	},
-	getFileName(url, response) {
+	getFileRelativePath(url, response) {
 		if (typeof url === 'string')
 			url = URL.parse(url);
 		let fileExt = '';
@@ -102,7 +106,15 @@ let plugin = {
 		else {
 			fileExt = '.'+mime.getExtension(response.headers.getContentType());
 		}
-		return uuid() + fileExt;
+		const bytes = randomBytes(6);
+		const fileName = uuid({
+			node: bytes
+		}) + fileExt;
+		const reverseBytes = bytes.reverse();
+		return {
+			subPath: `${reverseBytes[0].toString(16).padStart(2, '0')}/${reverseBytes[1].toString(16).padStart(2, '0')}`,
+			fileName
+		};
 	}
 }
 
