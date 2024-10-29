@@ -54,6 +54,9 @@ let plugin = {
 			(item.postType !== 'image' && item.postType !== 'gif' && item.postType !== 'video' && item.postType !== 'gallery')) {
 			return;
 		}
+		if (this.isInDB(item.snooItem)) {
+			return;
+		}
 		if (item.postType === 'gallery') {
 			let keys = Object.keys(item.snooItem.media_metadata);
 			for (const key of keys) {
@@ -80,6 +83,10 @@ let plugin = {
 		const filePath = `${fileSubPath}/${fileNameData.fileName}`;
 		await fs.writeFile(filePath, res.data);
 		this.saveInDB(post, url, filePath);
+	},
+	async isInDB(post) {
+		const res = client.prepare('SELECT COUNT(*) as count from item where id=?').get(post.id);
+		return res.count > 0;
 	},
 	async saveInDB(post, url, filePath) {
 		const query = 'INSERT INTO item values(?, ?, ?)';
