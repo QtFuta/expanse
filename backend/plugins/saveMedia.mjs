@@ -84,7 +84,7 @@ let plugin = {
 		await fs.writeFile(filePath, res.data);
 		this.saveInDB(post, url, filePath);
 	},
-	async isInDB(post) {
+	isInDB(post) {
 		const res = client.prepare('SELECT COUNT(*) as count from item where id=?').get(post.id);
 		return res.count > 0;
 	},
